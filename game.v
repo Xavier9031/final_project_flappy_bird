@@ -1,0 +1,694 @@
+module game(input jump, input jump2, input reset, input clk, input [9:0] x, input [9:0] y,
+	output [3:0] red, output [3:0] green, output [3:0] blue, 
+	output [0:6] HEX0, output [0:6] HEX1, output [0:6] HEX2, output [0:6] HEX3);
+	
+	//screen new update
+	reg [2:0] idx;
+	reg [25:0] pipe1;
+	reg [25:0] pipe2;
+	reg [25:0] pipe3;
+	reg [25:0] bird1;
+	reg [25:0] bird2;
+
+	//pipe clock
+	reg pipe1_clk = 1;
+	reg pipe2_clk = 1;
+	reg pipe3_clk = 1;
+
+	//hit yes or no
+	reg hit = 0;
+	reg hit2 = 0;
+
+	//pass yes or no 
+	reg check1;
+	reg check2;
+	reg check3;
+
+	reg check11;
+	reg check22;
+	reg check33;
+
+	// temp pipe height
+	wire [9:0] pipe1_height_temp;
+	wire [9:0] pipe2_height_temp;
+	wire [9:0] pipe3_height_temp;
+	
+	//pipe height
+	integer pipe1_height;
+	integer pipe2_height;
+	integer pipe3_height;
+
+	integer pipe1_x_left;
+	integer pipe1_x_right;
+	integer pipe2_x_left;
+	integer pipe2_x_right;
+	integer pipe3_x_left;
+	integer pipe3_x_right;
+
+	integer bird_x;
+	integer bird_y;
+
+	integer bird2_x;
+	integer bird2_y;
+	
+	integer score1;
+	integer score2;
+
+	reg [3:0] scoreFirst;
+	reg [3:0] scoreSecond;
+	reg [3:0] scoreFirst2;
+	reg [3:0] scoreSecond2;
+
+	initial 
+	begin
+		pipe1_x_left = 120;
+		pipe1_x_right = 200;
+		pipe2_x_left = 360;
+		pipe2_x_right = 440;
+		pipe3_x_left = 600;
+		pipe3_x_right = 680;
+		pipe1_height = 400;
+		pipe2_height = 300;
+		pipe3_height = 100;
+		bird_x = 305;
+		bird_y = 250;
+		bird_x = 305;
+		bird_y = 250;
+		check1 = 0;
+		check2 = 0;
+		check3 = 0;
+		check11 = 0;
+		check22 = 0;
+		check33 = 0;
+		score1 = 0;
+		score2 = 0;
+	end
+
+
+
+	//////create pipe
+	always @(posedge clk)
+	begin
+		pipe1 = pipe1 + 1;
+		if (pipe1 == 26'h7A120)
+		begin
+			pipe1 = 0;
+			if (pipe1_x_left <= 0) 
+			begin 
+				pipe1_clk = 1;
+				pipe1_x_left = 800;
+			end
+			else if (pipe1_x_right <= 0) 
+			begin
+				pipe1_clk= 0;
+				pipe1_x_right = 800;
+			end
+			else 
+			begin
+				pipe1_clk = 0;
+				pipe1_x_left = pipe1_x_left - 1;
+				pipe1_x_right = pipe1_x_right - 1; 
+			end
+		end 
+	end
+	
+	//random pipe1 height
+	random1 cpipe1 (pipe1_clk, pipe1_height_temp);
+	
+	always @(posedge clk)
+	begin
+		pipe2 = pipe2 + 1;
+		if (pipe2 == 26'h7A120)
+		begin
+			pipe2 = 0;
+			if (pipe2_x_left <= 0) 
+			begin 
+				pipe2_x_left = 800;
+				pipe2_clk = 1; 
+			end
+			else if (pipe2_x_right <= 0) 
+			begin
+				pipe2_x_right = 800;
+				pipe2_clk = 0; 
+			end
+			else 
+			begin
+				pipe2_x_left = pipe2_x_left - 1;
+				pipe2_x_right = pipe2_x_right - 1; 
+				pipe2_clk = 0; 
+			end
+		end 
+	end
+	
+	//random pipe2 height
+	random2 cpipe2 (pipe2_clk, pipe2_height_temp);
+	
+	always @(posedge clk)
+	begin
+		pipe3 = pipe3 + 1;
+		if (pipe3 == 26'h7A120)
+		begin
+			pipe3 = 0;
+			if (pipe3_x_left <= 0) 
+			begin
+				pipe3_x_left = 800;
+				pipe3_clk = 1; 
+			end
+			else if (pipe3_x_right <= 0) 		
+			begin
+				pipe3_x_right = 800;
+				pipe3_clk = 0; 
+			end
+			else
+			begin
+				pipe3_x_left = pipe3_x_left - 1;
+				pipe3_x_right = pipe3_x_right - 1; 
+				pipe3_clk = 0; 
+			end
+		end 
+	end
+	
+	//random pipe3 height
+	random3 cpipe3 (pipe3_clk, pipe3_height_temp);
+	
+	
+	//assign pipe height 
+	always 
+	begin
+		pipe1_height <= pipe1_height_temp;
+		pipe2_height <= pipe2_height_temp;
+		pipe3_height <= pipe3_height_temp; 
+	end
+	
+	
+	
+	
+	/////bird1
+	always @(posedge clk)
+	begin
+		bird1 = bird1 + 1;
+		if (bird1 == 26'h2DC6C0)
+		begin
+			bird1 = 0;
+			if (!jump && !hit) // no jump no hit
+				bird_y = bird_y - 10;
+			//if reset, turn everything back to normal.
+			else if (!reset) 
+			begin
+				bird_y = 250;
+				hit <= 0;
+				scoreFirst <= 0; 
+				scoreSecond <= 0;
+				score1 = 0;
+				bird_x = 305; 
+			end
+				
+			// hit top
+			else if (bird_y <= 0)
+			begin
+				bird_y = 250;
+				hit <= 1; 
+			end
+				
+			// hit ground
+			else if (bird_y >= 540) 
+			begin
+				bird_y = 540;
+				hit <= 1; 
+			end
+				
+			// hit pipe1 bottom
+			else if (pipe1_x_left <= bird_x && pipe1_x_right + 30 >= bird_x && pipe1_height <= bird_y) 
+			begin
+				bird_y = bird_y;
+				bird_x = pipe1_x_left -30;
+				hit <= 1; 
+			end
+				
+			// hit pipe1 top
+			else if (pipe1_x_left <= bird_x && pipe1_x_right + 30 >= bird_x && pipe1_height - 90 >= bird_y )
+			begin
+				bird_y = bird_y;
+				bird_x = pipe1_x_left -30;
+				hit <= 1; 
+			end
+				
+			//hit pipe2 bottom
+			else if (pipe2_x_left <= bird_x && pipe2_x_right + 30 >= bird_x && pipe2_height <= bird_y)
+			begin
+				bird_y = bird_y;
+				bird_x = pipe2_x_left -30;
+				hit <= 1; 
+			end
+				
+				
+			// hit pipe2 top
+			else if (pipe2_x_left <= bird_x && pipe2_x_right + 30 >= bird_x && pipe2_height - 90 >= bird_y)
+			begin
+				bird_y = bird_y;
+				bird_x = pipe2_x_left -30;
+				hit <= 1; 
+			end
+				
+			//hit pipe3 bottom
+			else if (pipe3_x_left <= bird_x && pipe3_x_right + 30 >= bird_x && pipe3_height <= bird_y)
+			begin
+				bird_y = bird_y;
+				bird_x = pipe3_x_left -30;
+				hit <= 1; 
+			end
+				
+			// hit pipe3 top
+			else if (pipe3_x_left <= bird_x && pipe3_x_right + 30 >= bird_x && pipe3_height - 90 >= bird_y)
+			begin
+				bird_y = bird_y;
+				bird_x = pipe3_x_left -30;
+				hit <= 1; 
+			end
+				
+			//down 
+			else
+				bird_y = bird_y + 10;
+				
+				
+			// score for pipe1
+			if (pipe1_x_right > 5)
+			begin
+				if (!hit && pipe1_x_left-10 <= bird_x && pipe1_x_right-10 >= bird_x + 30 && bird_y >= pipe1_height - 120 && bird_y <= pipe1_height && !check1) 
+				begin
+					check1 = 1;
+					score1 = score1 + 1;
+					scoreFirst <= scoreFirst + 1'b1;
+				end
+				if (scoreFirst == 4'b1010) 
+				begin
+					scoreSecond <= scoreSecond + 1'b1;
+					scoreFirst <= 0; 
+				end 
+			end
+				
+			if (pipe1_x_right < 5)
+				check1 = 0;
+				
+			// score for pipe2
+			if (pipe2_x_right > 5 )
+			begin
+				if (!hit && pipe2_x_left-10 <= bird_x && pipe2_x_right-10 >= bird_x + 30 && bird_y >= pipe2_height - 120 && bird_y <= pipe2_height && !check2) 
+				begin
+					check2 = 1;
+					score1 = score1 + 1;
+					scoreFirst <= scoreFirst + 1'b1;
+				end
+				if (scoreFirst == 4'b1010) 
+				begin
+					scoreSecond <= scoreSecond + 1'b1;
+					scoreFirst <= 0; 
+				end
+			end
+			
+			if (pipe2_x_right < 5)
+				check2 = 0;
+
+
+			// score for pipe3
+			if (pipe3_x_right > 5)
+			begin
+				if (!hit && pipe3_x_left -10 <= bird_x && pipe3_x_right-10 >= bird_x + 30 && bird_y >= pipe3_height - 120 && bird_y <= pipe3_height && !check3) 
+				begin
+					check3 = 1;
+					score1 = score1 + 1;
+					scoreFirst <= scoreFirst + 1'b1;
+					if (scoreFirst == 4'b1010)
+					begin
+						scoreSecond <= scoreSecond + 1'b1;
+						scoreFirst <= 0; 
+					end 
+				end
+			end
+			
+			if (pipe3_x_right < 5)
+				check3 = 0;
+		end
+	end	
+	
+	
+	
+	/////bird2
+	always @(posedge clk)
+	begin
+		bird2 = bird2 + 1;
+		if (bird2 == 26'h2DC6C0)
+		begin
+			bird2 = 0;
+			if (!jump2 && !hit2) // no jump no hit
+				bird2_y = bird2_y - 10;
+				
+			//reset all
+			else if (!reset) 
+			begin
+				bird2_y = 250;
+				hit2 <= 0;
+				scoreFirst2 <= 0; 
+				scoreSecond2 <= 0;
+				bird2_x = 305; 
+				score2 = 0;
+			end
+				
+			// hit top
+			else if (bird2_y <= 0)
+			begin
+				bird2_y = 250;
+				hit2 <= 1; 
+			end
+				
+			// hit ground
+			else if (bird2_y >= 540) 
+			begin
+				bird2_y = 540;
+				hit2 <= 1; 
+			end
+				
+			// hit pipe1 bottom
+			else if (pipe1_x_left <= bird2_x && pipe1_x_right + 30 >= bird2_x && pipe1_height <= bird2_y) 
+			begin
+				bird2_y = bird2_y;
+				bird2_x = pipe1_x_left -30;
+				hit2 <= 1; 
+			end
+				
+			// hit pipe1 top
+			else if (pipe1_x_left <= bird2_x && pipe1_x_right + 30 >= bird2_x && pipe1_height - 90 >= bird2_y )
+			begin
+				bird2_y = bird2_y;
+				bird2_x = pipe1_x_left -30;
+				hit2 <= 1; 
+			end
+				
+			//hit pipe2 bottom
+			else if (pipe2_x_left <= bird2_x && pipe2_x_right + 30 >= bird2_x && pipe2_height <= bird2_y)
+			begin
+				bird2_y = bird2_y;
+				bird2_x = pipe2_x_left -30;
+				hit2 <= 1; 
+			end
+				
+				
+			// hit pipe2 top
+			else if (pipe2_x_left <= bird2_x && pipe2_x_right + 30 >= bird2_x && pipe2_height - 90 >= bird2_y)
+			begin
+				bird2_y = bird2_y;
+				bird2_x = pipe2_x_left -30;
+				hit2 <= 1; 
+			end
+				
+			//hit pipe3 bottom
+			else if (pipe3_x_left <= bird2_x && pipe3_x_right + 30 >= bird2_x && pipe3_height <= bird2_y)
+			begin
+				bird2_y = bird2_y;
+				bird2_x = pipe3_x_left -30;
+				hit2 <= 1; 
+			end
+				
+			// hit pipe3 top
+			else if (pipe3_x_left <= bird2_x && pipe3_x_right + 30 >= bird2_x && pipe3_height - 90 >= bird2_y)
+			begin
+				bird2_y = bird2_y;
+				bird2_x = pipe3_x_left -30;
+				hit2 <= 1; 
+			end
+				
+			//down 
+			else
+				bird2_y = bird2_y + 10;
+				
+				
+			// score for pipe1
+			if (pipe1_x_right > 5)
+			begin
+				if (!hit2 && pipe1_x_left-10 <= bird2_x && pipe1_x_right-10 >= bird2_x + 30 && bird2_y >= pipe1_height - 120 && bird2_y <= pipe1_height && !check11) 
+				begin
+					check11 = 1;
+					score2 = score2 + 1;
+					scoreFirst2 <= scoreFirst2 + 1'b1;
+				end
+				if (scoreFirst2 == 4'b1010) 
+				begin
+					scoreSecond2 <= scoreSecond2 + 1'b1;
+					scoreFirst2 <= 0; 
+				end 
+			end
+				
+			if (pipe1_x_right < 5)
+				check11 = 0;
+				
+			// score for pipe2
+			if (pipe2_x_right > 5 )
+			begin
+				if (!hit2 && pipe2_x_left-10 <= bird2_x && pipe2_x_right-10 >= bird2_x + 30 && bird2_y >= pipe2_height - 120 && bird2_y <= pipe2_height && !check22) 
+				begin
+					check22 = 1;
+					score2 = score2 + 1;
+					scoreFirst2 <= scoreFirst2 + 1'b1;
+				end
+				if (scoreFirst2 == 4'b1010) 
+				begin
+					scoreSecond2 <= scoreSecond2 + 1'b1;
+					scoreFirst2 <= 0; 
+				end
+			end
+			
+			if (pipe2_x_right < 5)
+				check22 = 0;
+
+
+			// score for pipe3
+			if (pipe3_x_right > 5)
+			begin
+				if (!hit2 && pipe3_x_left -10 <= bird2_x && pipe3_x_right-10 >= bird2_x + 30 && bird2_y >= pipe3_height - 120 && bird2_y <= pipe3_height && !check33) 
+				begin
+					check33 = 1;
+					score2 = score2 + 1;
+					scoreFirst2 <= scoreFirst2 + 1'b1;
+					if (scoreFirst2 == 4'b1010)
+					begin
+						scoreSecond2 <= scoreSecond2 + 1'b1;
+						scoreFirst2 <= 0; 
+					end 
+				end
+			end
+			
+			if (pipe3_x_right < 5)
+				check33 = 0;
+		end
+	end		
+	
+	
+	//setting display color
+	always @(x && y)
+	begin
+		if (x >= 0 && x <= 800 && y >= 0 & y <= 540) // all screen (sky)
+			idx <= 3'd6;
+		
+		if (x >= 0 && x <= 800 && y >= 540 && y <= 600) //ground
+			idx <= 3'd7; 
+		
+		//if (x >= 0 && x <= 800 && y >= 0 && y <= 50) idx <= 3'd4; //Cloud
+		
+		
+		//bird1
+		else if (x >= bird_x && x <= bird_x + 30 && y >= bird_y -30 && y <= bird_y ) 
+			idx <= 3'd3; 
+		
+		//bird2
+		else if (x >= bird2_x && x <= bird2_x + 30 && y >= bird2_y -30 && y <= bird2_y ) 
+			idx <= 3'd5;  
+
+		//pipe1
+		else if (x >= pipe1_x_left && x <= pipe1_x_right && y >= pipe1_height && y <= 540) 
+			idx <= 3'd2;
+		else if (x >= pipe1_x_left && x <= pipe1_x_right && y <= pipe1_height - 120 && y >= 0) 
+			idx <= 3'd2;
+		
+	
+		//pipe2
+		else if (x >= pipe2_x_left && x <= pipe2_x_right && y >= pipe2_height && y <= 540) 
+			idx <= 3'd2;
+		else if (x >= pipe2_x_left && x <= pipe2_x_right && y <= pipe2_height - 120 && y >= 0) 
+			idx <= 3'd2;
+		
+		//pipe3
+		else if (x >= pipe3_x_left && x <= pipe3_x_right && y >= pipe3_height && y <= 540) 
+			idx <= 3'd2; 
+		else if (x >= pipe3_x_left && x <= pipe3_x_right && y <= pipe3_height - 120 && y >= 0) 
+			idx <= 3'd2;
+		
+		
+		// display game over
+		if (hit && hit2) 
+		begin// hit 
+			if (x >= 30 && x <= 770 && y >= 50 && y <= 570) 
+				idx <= 3'd0;
+			if (x >= 130 && x <=510 && y <= 400 && y >= 100) 
+			begin
+				idx <= 3'd7; 
+				if (x >= 130 && x <= 170 && y <= 350 && y >= 100) idx <= 3'd0;
+				if (x >= 240 && x <= 410 && y >= 200 && y <= 250) idx <= 3'd0;
+				if (x >= 290 && x <= 337 && y >= 150 && y <= 350) idx <= 3'd0;
+				if (x >= 460 && x <= 560 && y <= 350 && y >= 100) idx <= 3'd0; 
+			end
+			
+			if(score1 > score2)
+			begin
+				if (x >= 560 && x <= 620 && y <= 350 && y >= 100)
+					idx <= 3'd7; 
+			end	
+			else if(score1 < score2)
+			begin
+				if (x >= 560 && x <= 620 && y <= 350 && y >= 100)
+					idx <= 3'd7; 
+				if (x >= 660 && x <= 720 && y <= 350 && y >= 100)
+					idx <= 3'd7; 
+			end
+			else
+			begin
+				if (x >= 560 && x <= 720 && y <= 220 && y >= 180)
+					idx <= 3'd7; 		
+				if (x >= 560 && x <= 720 && y <= 290 && y >= 250)
+					idx <= 3'd7; 		
+			end
+			
+		end
+	end
+
+	//screen display
+	assign red = (idx[0]? 4'b1111: 4'b000);
+	assign green = (idx[1]? 4'b1111: 4'b0000);
+	assign blue = (idx[2]? 4'b1111: 4'b0000);
+	
+	
+	//score display
+	BCD DisplayScoreFirst(scoreFirst, HEX2);
+	BCD DisplayScoreSecond(scoreSecond, HEX3);
+	BCD DisplayScoreFirst2(scoreFirst2, HEX0);
+	BCD DisplayScoreSecond2(scoreSecond2, HEX1);
+	
+
+endmodule
+
+
+
+module random1(clk1, height);
+	input clk1;
+	output reg [9:0] height;
+  
+
+	reg [0:3] fib = 4'b1111;
+
+	always @ ( posedge clk1 )
+	fib <= {fib[3]^fib[2], fib[0:2]};
+
+	always begin
+    case (fib)
+		0 : height <= 10'b0100101100;
+		1 : height <= 10'b0011011100;
+		2 : height <= 10'b0010101010;
+		3 : height <= 10'b0100100010;
+		4 : height <= 10'b0011111010;
+		5 : height <= 10'b0010110100;
+		6 : height <= 10'b0110000110;
+		7 : height <= 10'b0101010100;
+		8 : height <= 10'b0100110001;
+		9 : height <= 10'b0010010110;
+		10 : height <= 10'b0110010000;
+		11 : height <= 10'b0011011110;
+		12 : height <= 10'b0101001101;
+		13 : height <= 10'b0010100110;
+		14 : height <= 10'b0100010100;
+		15 : height <= 10'b0011000111;
+	endcase
+	end
+endmodule
+
+module random2(clk2, height);
+	input clk2;
+	output reg [9:0] height;
+	
+	reg [0:3] fib = 4'b1111;
+
+	always @ ( posedge clk2 )
+    fib <= {fib[3]^fib[2], fib[0:2]};
+
+	always begin
+    case (fib)
+		0 : height <= 10'b0011000111;
+		1 : height <= 10'b0011011110;
+		2 : height <= 10'b0010101010;
+		3 : height <= 10'b0011111010;
+		4 : height <= 10'b0010010110;
+		5 : height <= 10'b0110010000;
+		6 : height <= 10'b0100110001;
+		7 : height <= 10'b0010100110;
+		8 : height <= 10'b0010110100;
+		9 : height <= 10'b0101010100;
+		10 : height <= 10'b0100100010;
+		11 : height <= 10'b0100101100;
+		12 : height <= 10'b0110000110;
+		13 : height <= 10'b0011011100;
+		14 : height <= 10'b0100010100;
+		15 : height <= 10'b0101001101;
+    endcase
+	end
+endmodule
+
+module random3(clk3, height);
+	input clk3;
+	output reg [9:0] height;
+ 
+	reg [0:3] fib = 4'b1111;
+
+	always @ ( posedge clk3 )
+    fib <= {fib[3]^fib[2], fib[0:2]};
+
+	always begin
+    case (fib)
+		0 : height <= 10'b0010111111;
+		1 : height <= 10'b0110010000;
+		2 : height <= 10'b0100010001;
+		3 : height <= 10'b0011110100;
+		4 : height <= 10'b0110000110;
+		5 : height <= 10'b0101000000;
+		6 : height <= 10'b0010110010;
+		7 : height <= 10'b0010100110;
+		8 : height <= 10'b0010110100;
+		9 : height <= 10'b0011001000;
+		10 : height <= 10'b0100100010;
+		11 : height <= 10'b0110000110;
+		12 : height <= 10'b0011011110;
+		13 : height <= 10'b0100100100;
+		14 : height <= 10'b0100110111;
+		15 : height <= 10'b0101010100;
+    endcase
+	end
+endmodule
+
+
+// Display scores
+module BCD(temp, Display);
+	input [3:0] temp;
+	output [0:6] Display;
+	
+	assign Display [0:6] = (temp[3:0] == 4'b0000) ? 7'b0000001: //0
+							(temp[3:0] == 4'b0001) ? 7'b1001111: //1
+							(temp[3:0] == 4'b0010) ? 7'b0010010: //2
+							(temp[3:0] == 4'b0011) ? 7'b0000110: //3
+							(temp[3:0] == 4'b0100) ? 7'b1001100: //4
+							(temp[3:0] == 4'b0101) ? 7'b0100100: //5
+							(temp[3:0] == 4'b0110) ? 7'b0100000: //6
+							(temp[3:0] == 4'b0111) ? 7'b0001111: //7
+							(temp[3:0] == 4'b1000) ? 7'b0000000: 7'b0000100; //8 else 9
+endmodule
+
+
+
+
+
